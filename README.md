@@ -2,11 +2,7 @@
 
 Конспект и интерактивная визуализация градиента и градиентного спуска на примере функции $f(x, y) = x^2 + 10y^2$.
 
-**👉 [Открыть интерактивную визуализацию](https://movi2752.github.io/Gradient/gradient_viz_interactive.html)**
-
-[![Превью визуализации](gradient_full.png)](https://movi2752.github.io/Gradient/gradient_viz_interactive.html)
-
-*Клик по картинке → запустится интерактивная 3D-визуализация: вращай поверхность, двигай слайдер $\eta$, нажимай старт — увидишь анимацию градиентного спуска.*
+[![Live Demo](https://img.shields.io/badge/demo-live-green)](https://movi2752.github.io/Gradient/gradient_viz_interactive.html)
 
 ---
 
