@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>Градиент и градиентный спуск</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    background: #1e1e1e;
+    color: #d4d4d4;
+    margin: 0;
+    padding: 12px;
+  }
+  .panel {
+    background: #2a2a2a;
+    border: 1px solid #3a3a3a;
+    border-radius: 8px;
+    padding: 12px 16px;
+    margin-bottom: 10px;
+  }
+  .row {
+    display: flex;
+    gap: 14px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+  button {
+    background: #3b82f6;
+    color: white;
+    border: none;
+    padding: 7px 14px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 13px;
+    font-family: inherit;
+    transition: background 0.15s;
+  }
+  button:hover { background: #2563eb; }
+  button.secondary { background: #4a4a4a; }
+  button.secondary:hover { background: #5a5a5a; }
+  input[type=range] {
+    width: 180px;
+    accent-color: #3b82f6;
+  }
+  label {
+    font-size: 13px;
+    color: #aaa;
+    user-select: none;
+  }
+  .val {
+    color: #fff;
+    font-weight: 500;
+    font-family: "SF Mono", Menlo, monospace;
+    min-width: 50px;
+    display: inline-block;
+  }
+  .status {
+    font-size: 12px;
+    color: #888;
+    font-family: "SF Mono", Menlo, monospace;
+    margin-top: 6px;
+  }
+  #plot3d { width: 100%; height: 460px; }
+  .title-row {
+    font-size: 12px;
+    color: #888;
+    margin-bottom: 4px;
+  }
+</style>
+</head>
+<body>
+
+<div class="panel">
+  <div class="row">
+    <label>η = <span class="val" id="lr-val">0.050</span></label>
+    <input type="range" id="lr" min="0.001" max="0.120" step="0.001" value="0.050">
+    <button onclick="runDescent([2.8, 1.5])">Старт A (2.8, 1.5)</button>
+    <button onclick="runDescent([-2.5, -1.5])">Старт B (-2.5, -1.5)</button>
+    <button onclick="runDescent([0.5, 1.8])">Старт C (0.5, 1.8)</button>
+    <button class="secondary" onclick="reset()">Сброс</button>
+  </div>
+  <div class="status" id="status">Двигай слайдер η и нажимай старт. При η ≥ 0.1 спуск расходится.</div>
+</div>
+
+<div id="plot3d"></div>
+
+<script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+<script>
+const f = (x, y) => x*x + 10*y*y;
+const gf = (x, y) => [2*x, 20*y];
+
+// --- Surface grid ---
+const N = 50;
+const xs = Array.from({length: N}, (_, i) => -3 + 6*i/(N-1));
+const ys = Array.from({length: N}, (_, i) => -2 + 4*i/(N-1));
+const zs = ys.map(y => xs.map(x => f(x, y)));
+
+// --- Reference points and arrows ---
+const points = [[3, 0], [0, 1.5], [2, 1]];
+const norms = points.map(([x, y]) => Math.hypot(...gf(x, y)));
+const maxN = Math.max(...norms);
+const scale = 1.5 / maxN;
+
+function buildArrows() {
+  const gX = [], gY = [], gZ = [], guU = [], guV = [], guW = [];
+  const aX = [], aY = [], aZ = [], auU = [], auV = [], auW = [];
+  points.forEach(([x0, y0]) => {
+    const z0 = f(x0, y0);
+    const [gx, gy] = gf(x0, y0);
+    const dx = gx * scale, dy = gy * scale;
+    gX.push(x0); gY.push(y0); gZ.push(z0);
+    guU.push(dx); guV.push(dy); guW.push(0);
+    aX.push(x0); aY.push(y0); aZ.push(z0);
+    auU.push(-dx); auV.push(-dy); auW.push(0);
+  });
+  return {gX, gY, gZ, guU, guV, guW, aX, aY, aZ, auU, auV, auW};
+}
+
+const arr = buildArrows();
+
+const surface = {
+  type: 'surface', x: xs, y: ys, z: zs,
+  colorscale: 'Plasma', opacity: 0.7,
+  showscale: false,
+  contours: { z: { show: true, usecolormap: true, project: { z: true } } },
+  hovertemplate: 'x=%{x:.2f}<br>y=%{y:.2f}<br>f=%{z:.2f}<extra></extra>'
+};
+
+const gradTrace = {
+  type: 'cone', name: '∇f (рост)',
+  x: arr.gX, y: arr.gY, z: arr.gZ,
+  u: arr.guU, v: arr.guV, w: arr.guW,
+  colorscale: [[0, '#ef4444'], [1, '#ef4444']],
+  showscale: false, sizemode: 'absolute', sizeref: 0.4,
+  anchor: 'tail', opacity: 0.95,
+  hovertemplate: '∇f в (%{x:.1f},%{y:.1f})<extra></extra>'
+};
+
+const antiTrace = {
+  type: 'cone', name: '-∇f (спуск)',
+  x: arr.aX, y: arr.aY, z: arr.aZ,
+  u: arr.auU, v: arr.auV, w: arr.auW,
+  colorscale: [[0, '#3b82f6'], [1, '#3b82f6']],
+  showscale: false, sizemode: 'absolute', sizeref: 0.4,
+  anchor: 'tail', opacity: 0.95,
+  hovertemplate: '-∇f в (%{x:.1f},%{y:.1f})<extra></extra>'
+};
+
+const refPts = {
+  type: 'scatter3d', mode: 'markers', name: 'Точки',
+  x: arr.gX, y: arr.gY, z: arr.gZ,
+  marker: { size: 5, color: '#f59e0b' },
+  hovertemplate: '(%{x:.1f},%{y:.1f})<extra></extra>',
+  showlegend: false
+};
+
+// --- Gradient descent trajectory (initially empty) ---
+let trajTrace = {
+  type: 'scatter3d', mode: 'lines+markers',
+  name: 'Траектория',
+  x: [], y: [], z: [],
+  line: { color: '#10b981', width: 5 },
+  marker: { size: 4, color: '#10b981' },
+  hovertemplate: 'шаг %{text}<br>(%{x:.2f},%{y:.2f})<extra></extra>',
+  text: []
+};
+
+const layout = {
+  paper_bgcolor: 'rgba(0,0,0,0)',
+  plot_bgcolor: 'rgba(0,0,0,0)',
+  margin: { l: 0, r: 0, t: 10, b: 0 },
+  scene: {
+    xaxis: { title: 'x', gridcolor: '#3a3a3a', zerolinecolor: '#555',
+             color: '#bbb', backgroundcolor: 'rgba(0,0,0,0)' },
+    yaxis: { title: 'y', gridcolor: '#3a3a3a', zerolinecolor: '#555',
+             color: '#bbb', backgroundcolor: 'rgba(0,0,0,0)' },
+    zaxis: { title: 'f(x,y)', gridcolor: '#3a3a3a', zerolinecolor: '#555',
+             color: '#bbb', backgroundcolor: 'rgba(0,0,0,0)' },
+    camera: { eye: { x: 1.7, y: -1.7, z: 1.0 } },
+    bgcolor: 'rgba(0,0,0,0)'
+  },
+  legend: {
+    x: 0.02, y: 0.98,
+    bgcolor: 'rgba(40,40,40,0.7)',
+    bordercolor: '#555',
+    font: { size: 11, color: '#ddd' }
+  },
+  font: { color: '#ddd' }
+};
+
+Plotly.newPlot('plot3d',
+  [surface, gradTrace, antiTrace, refPts, trajTrace],
+  layout,
+  { responsive: true, displaylogo: false,
+    modeBarButtonsToRemove: ['toImage', 'sendDataToCloud'] }
+);
+
+// --- Gradient descent ---
+let animFrame = null;
+
+function gradientDescent(start, lr, maxSteps = 60) {
+  const path = [[...start]];
+  for (let i = 0; i < maxSteps; i++) {
+    const [x, y] = path[path.length - 1];
+    const [gx, gy] = gf(x, y);
+    if (Math.hypot(gx, gy) < 1e-4) break;
+    const nx = x - lr * gx;
+    const ny = y - lr * gy;
+    path.push([nx, ny]);
+    if (Math.abs(nx) > 10 || Math.abs(ny) > 10) break; // расходится
+  }
+  return path;
+}
+
+function animatePath(path) {
+  cancelAnimationFrame(animFrame);
+  let i = 1;
+  const tx = [path[0][0]];
+  const ty = [path[0][1]];
+  const tz = [f(path[0][0], path[0][1])];
+  const tt = ['0'];
+
+  Plotly.restyle('plot3d', { x: [tx], y: [ty], z: [tz], text: [tt] }, [4]);
+
+  function step() {
+    if (i >= path.length) {
+      const last = path[path.length - 1];
+      const dist = Math.hypot(last[0], last[1]);
+      const diverged = Math.abs(last[0]) > 5 || Math.abs(last[1]) > 5;
+      document.getElementById('status').textContent =
+        diverged
+          ? `⚠ Расходится за ${path.length - 1} шагов (улетели в |x|>5)`
+          : `✓ Сошлось за ${path.length - 1} шагов, дистанция до минимума: ${dist.toFixed(4)}`;
+      return;
+    }
+    tx.push(path[i][0]);
+    ty.push(path[i][1]);
+    tz.push(f(path[i][0], path[i][1]));
+    tt.push(String(i));
+    Plotly.restyle('plot3d', { x: [tx], y: [ty], z: [tz], text: [tt] }, [4]);
+    i++;
+    animFrame = requestAnimationFrame(() => setTimeout(step, 80));
+  }
+  step();
+}
+
+function runDescent(start) {
+  const lr = parseFloat(document.getElementById('lr').value);
+  document.getElementById('status').textContent =
+    `Запуск из (${start[0]}, ${start[1]}) с η=${lr.toFixed(3)}...`;
+  const path = gradientDescent(start, lr);
+  animatePath(path);
+}
+
+function reset() {
+  cancelAnimationFrame(animFrame);
+  Plotly.restyle('plot3d', { x: [[]], y: [[]], z: [[]], text: [[]] }, [4]);
+  document.getElementById('status').textContent = 'Сброшено.';
+}
+
+document.getElementById('lr').addEventListener('input', (e) => {
+  document.getElementById('lr-val').textContent = parseFloat(e.target.value).toFixed(3);
+});
+</script>
+
+</body>
+</html>
