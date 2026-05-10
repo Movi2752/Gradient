@@ -153,7 +153,7 @@ $$\kappa = \frac{\lambda_{\max}}{\lambda_{\min}}$$
 
 $$
 \|\mathbf{x}_t - \mathbf{x}^*\|
-\leq
+\le
 \left(\frac{\kappa - 1}{\kappa + 1}\right)^t
 \|\mathbf{x}_0 - \mathbf{x}^*\|
 $$
