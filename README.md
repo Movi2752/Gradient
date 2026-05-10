@@ -151,7 +151,7 @@ $$\kappa = \frac{\lambda_{\max}}{\lambda_{\min}}$$
 
 Чем больше $\kappa$, тем медленнее сходимость. Скорость уменьшения ошибки:
 
-$$\lVert\mathbf{x}_t - \mathbf{x}^*\rVert \leq \left(\frac{\kappa - 1}{\kappa + 1}\right)^t \lVert\mathbf{x}_0 - \mathbf{x}^*\rVert$$
+$$\|\mathbf{x}_t - \mathbf{x}^*\| \leq \left(\frac{\kappa - 1}{\kappa + 1}\right)^t \|\mathbf{x}_0 - \mathbf{x}^*\|$$
 
 Для функции $x^2 + 10y^2$: $\kappa = 10$, коэффициент $9/11 \approx 0.818$ — медленно. Для $x^2 + y^2$: $\kappa = 1$, коэффициент $0$ — один шаг.
 
